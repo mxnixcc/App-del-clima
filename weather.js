@@ -1,34 +1,63 @@
+/* ========================= */
+/* 🧠 CACHE (NUEVO - AÑADIDO) */
+/* ========================= */
+
+const CACHE_PREFIX = "weather_";
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutos
+
+function saveToCache(city, data) {
+  const cacheData = {
+    data,
+    timestamp: Date.now()
+  };
+  localStorage.setItem(CACHE_PREFIX + city.toLowerCase(), JSON.stringify(cacheData));
+}
+
+function getFromCache(city) {
+  const cached = localStorage.getItem(CACHE_PREFIX + city.toLowerCase());
+  if (!cached) return null;
+
+  const parsed = JSON.parse(cached);
+  const isExpired = Date.now() - parsed.timestamp > CACHE_DURATION;
+
+  if (isExpired) {
+    localStorage.removeItem(CACHE_PREFIX + city.toLowerCase());
+    return null;
+  }
+
+  return parsed.data;
+}
+
 /**
  * Obtiene el clima actual de una ciudad usando Open-Meteo
- * @param {string} city - Nombre de la ciudad
- * @returns {Promise<Object>} - Objeto con ciudad, temperatura y descripción
  */
 async function getWeatherByCity(city) {
   try {
-    // 1. Validar entrada
     if (!city || typeof city !== "string") {
       throw new Error("Debes proporcionar un nombre de ciudad válido.");
     }
 
-    // 2. Obtener latitud y longitud desde la API de geocodificación
+    const cachedData = getFromCache(city);
+    if (cachedData) {
+      console.log("Usando caché para:", city);
+      return cachedData;
+    }
+
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
     const geoResponse = await fetch(geoUrl);
 
-    // Verificar si la respuesta fue exitosa
     if (!geoResponse.ok) {
       throw new Error("Error al obtener datos de geolocalización.");
     }
 
     const geoData = await geoResponse.json();
 
-    // Verificar si se encontró la ciudad
     if (!geoData.results || geoData.results.length === 0) {
       throw new Error("No se encontró la ciudad especificada.");
     }
 
     const { latitude, longitude, name } = geoData.results[0];
 
-    // 3. Obtener datos meteorológicos actuales
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`;
     const weatherResponse = await fetch(weatherUrl);
 
@@ -38,14 +67,12 @@ async function getWeatherByCity(city) {
 
     const weatherData = await weatherResponse.json();
 
-    // Verificar si existen datos meteorológicos
     if (!weatherData.current_weather) {
       throw new Error("No hay datos meteorológicos disponibles.");
     }
 
     const { temperature, weathercode } = weatherData.current_weather;
 
-    // 4. Traducir el código de clima a una descripción simple
     const weatherDescriptions = {
       0: "Cielo despejado",
       1: "Mayormente despejado",
@@ -67,15 +94,23 @@ async function getWeatherByCity(city) {
 
     const description = weatherDescriptions[weathercode] || "Clima desconocido";
 
-    // 5. Devolver el resultado en formato JSON
-    return {
+    const result = {
       city: name,
       temperature: temperature,
       description: description
     };
 
+    saveToCache(city, result);
+
+    return result;
+
   } catch (error) {
-    // Manejo general de errores
+    const cachedData = getFromCache(city);
+    if (cachedData) {
+      console.log("Fallback a caché para:", city);
+      return cachedData;
+    }
+
     return {
       error: true,
       message: error.message
@@ -83,10 +118,116 @@ async function getWeatherByCity(city) {
   }
 }
 
-getWeatherByCity("Madrid")
-  .then(data => {
-    console.log("Resultado:", data);
-  })
-  .catch(error => {
-    console.error("Error:", error);
-  });
+/* ========================= */
+/* 🆕 MULTI CIUDAD           */
+/* ========================= */
+
+async function getWeatherByCities(cities) {
+  try {
+    if (!Array.isArray(cities) || cities.length === 0) {
+      throw new Error("Debes proporcionar un array de ciudades.");
+    }
+
+    const promises = cities.map(city => getWeatherByCity(city));
+    return await Promise.all(promises);
+
+  } catch (error) {
+    return { error: true, message: error.message };
+  }
+}
+
+/* ========================= */
+/* 🆕 PRONÓSTICO 5 DÍAS      */
+/* ========================= */
+
+async function getFiveDayForecast(city) {
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+    const geoResponse = await fetch(geoUrl);
+    const geoData = await geoResponse.json();
+
+    if (!geoData.results || geoData.results.length === 0) {
+      throw new Error("No se encontró la ciudad.");
+    }
+
+    const { latitude, longitude } = geoData.results[0];
+
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+
+    const response = await fetch(forecastUrl);
+    const data = await response.json();
+
+    return data.daily;
+
+  } catch (error) {
+    return { error: true, message: error.message };
+  }
+}
+
+/* ========================= */
+/* 🖥️ INTERFAZ DE USUARIO     */
+/* ========================= */
+
+const input = document.getElementById("citiesInput");
+const button = document.getElementById("getWeatherBtn");
+const resultsContainer = document.getElementById("results");
+
+button.addEventListener("click", async () => {
+  const value = input.value;
+
+  const cities = value
+    .split(",")
+    .map(city => city.trim())
+    .filter(city => city.length > 0);
+
+  if (cities.length === 0) {
+    resultsContainer.innerHTML = "<p>Por favor ingresa al menos una ciudad.</p>";
+    return;
+  }
+
+  resultsContainer.innerHTML = "<p>Cargando...</p>";
+
+  try {
+    const results = await getWeatherByCities(cities);
+
+    // 🔥 NUEVO: también obtener pronóstico por ciudad
+    const forecasts = await Promise.all(
+      cities.map(city => getFiveDayForecast(city))
+    );
+
+    resultsContainer.innerHTML = results.map((result, index) => {
+      if (result.error) {
+        return `<p>❌ ${result.message}</p>`;
+      }
+
+      const forecast = forecasts[index];
+
+      let forecastHTML = "";
+
+      if (!forecast.error) {
+        forecastHTML = forecast.time.slice(0, 5).map((date, i) => {
+          return `
+            <li>
+              📅 ${date} - 🌡️ ${forecast.temperature_2m_min[i]}° / ${forecast.temperature_2m_max[i]}°
+            </li>
+          `;
+        }).join("");
+      }
+
+      return `
+        <div>
+          <h3>${result.city}</h3>
+          <p>🌡️ ${result.temperature} °C</p>
+          <p>☁️ ${result.description}</p>
+          
+          <h4>Pronóstico 5 días:</h4>
+          <ul>${forecastHTML}</ul>
+        </div>
+        <hr/>
+      `;
+    }).join("");
+
+  } catch (error) {
+    resultsContainer.innerHTML = "<p>Error al obtener los datos.</p>";
+  }
+});
