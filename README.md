@@ -8,7 +8,8 @@ Uso de fetch para consumir APIs
 Manejo de errores
 Procesamiento de datos JSON
 Integración básica con HTML
-📦 Requisitos
+
+Requisitos
 
 No necesitas instalar dependencias externas.
 
