@@ -17,6 +17,8 @@ Solo necesitas:
 
 Un navegador moderno (Chrome, Edge, Firefox)
 (Recomendado) VS Code + extensión Live Server
+
+
 🚀 Instalación y ejecución
 1. Clonar o crear el proyecto
 
