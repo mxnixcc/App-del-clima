@@ -130,6 +130,8 @@ Resultado esperado:
   "error": true,
   "message": "Error al obtener datos..."
 }
+
+
 📌 Buenas prácticas para el equipo
 Siempre validar inputs antes de llamar la función
 Manejar tanto .then como .catch
