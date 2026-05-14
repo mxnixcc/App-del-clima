@@ -133,6 +133,7 @@ Resultado esperado:
 
 
 📌 Buenas prácticas para el equipo
+
 Siempre validar inputs antes de llamar la función
 Manejar tanto .then como .catch
 No asumir que la API siempre responde correctamente
