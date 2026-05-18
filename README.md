@@ -9,9 +9,11 @@ Manejo de errores
 Procesamiento de datos JSON
 Integración básica con HTML
 
+
 Requisitos
 
 No necesitas instalar dependencias externas.
+
 
 Solo necesitas:
 
