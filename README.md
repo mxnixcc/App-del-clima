@@ -128,6 +128,7 @@ Cambiar URL de la API manualmente
 
 Resultado esperado:
 
+
 {
   "error": true,
   "message": "Error al obtener datos..."
