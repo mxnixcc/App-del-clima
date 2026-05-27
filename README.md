@@ -121,6 +121,7 @@ null	Error de validación
 123	Error de tipo
 🌐 Casos de fallo de red
 
+
 Simular:
 
 Desconectar internet
