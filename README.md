@@ -14,7 +14,6 @@ Requisitos
 
 No necesitas instalar dependencias externas.
 
-
 Solo necesitas:
 
 Un navegador moderno (Chrome, Edge, Firefox)
